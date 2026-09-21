@@ -45,6 +45,102 @@ type Job = {
   remote: string;
 };
 
+const MARKET_SKILLS = [
+  "Python",
+  "Java",
+  "JavaScript",
+  "TypeScript",
+  "C++",
+  "C#",
+  ".NET",
+  "HTML",
+  "CSS",
+  "SCSS",
+  "React",
+  "Next.js",
+  "Vue.js",
+  "Angular",
+  "Tailwind CSS",
+  "Bootstrap",
+  "Node.js",
+  "Express.js",
+  "FastAPI",
+  "Django",
+  "Flask",
+  "SQL",
+  "MySQL",
+  "PostgreSQL",
+  "MongoDB",
+  "Redis",
+  "SQLite",
+  "Oracle",
+  "SQL Server",
+  "AWS",
+  "Azure",
+  "Google Cloud",
+  "Docker",
+  "Kubernetes",
+  "Git",
+  "GitHub",
+  "GitLab",
+  "CI/CD",
+  "DevOps",
+  "Excel",
+  "Power BI",
+  "Tableau",
+  "Pandas",
+  "NumPy",
+  "Matplotlib",
+  "Data Analysis",
+  "Data Analytics",
+  "Data Science",
+  "AI",
+  "Machine Learning",
+  "Deep Learning",
+  "TensorFlow",
+  "PyTorch",
+  "scikit-learn",
+  "Jest",
+  "Vitest",
+  "Playwright",
+  "Cypress",
+  "Selenium",
+  "Unit Testing",
+  "Integration Testing",
+  "API Testing",
+  "Automation Testing",
+  "Software Testing",
+  "Performance Testing",
+  "Regression Testing",
+  "Salesforce",
+  "Salesforce Commerce Cloud",
+  "SFCC",
+  "SFRA",
+  "ISML",
+  "Apex",
+  "SOQL",
+  "SOSL",
+  "LWC",
+  "REST API",
+  "GraphQL",
+  "SOAP",
+  "OCAPI",
+  "SCAPI",
+  "SEO",
+  "CRM",
+  "ERP",
+  "SAP",
+  "Figma",
+  "Photoshop",
+  "Illustrator",
+  "Agile",
+  "Scrum",
+  "WCAG",
+  "CMS",
+  "Headless CMS",
+  "A/B Testing",
+];
+
 export default function JobsPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -65,12 +161,6 @@ export default function JobsPage() {
     try {
       setLoading(true);
       setError("");
-
-      /*
-       * ============================================================
-       * 1. LOAD LIVE JOBS
-       * ============================================================
-       */
 
       const jobsResponse = await fetch(
         "http://127.0.0.1:8000/api/market/jobs?country=IN&limit=20",
@@ -94,58 +184,63 @@ export default function JobsPage() {
             job.status === "live" &&
             Boolean(job.apply_url)
         )
-        .map((job) => ({
-          id: job.id,
-
-          title:
-            job.title ||
-            "Untitled Job",
-
-          company:
-            job.company ||
-            "Company",
-
-          location:
-            job.location ||
-            job.city ||
-            "India",
-
-          type:
-            job.employment_type ||
-            "Job",
-
-          skills: [],
-
-          description:
+        .map((job) => {
+          const description =
             job.description ||
-            "Live opportunity. Open the official employer application page for complete job details.",
+            "Live opportunity. Open the official employer application page for complete job details.";
 
-          salary:
-            "Not disclosed",
+          return {
+            id: job.id,
 
-          posted:
-            formatPostedDate(
-              job.posted_at
-            ),
+            title:
+              job.title ||
+              "Untitled Job",
 
-          applyUrl:
-            job.apply_url ||
-            "",
+            company:
+              job.company ||
+              "Company",
 
-          remote:
-            job.remote ||
-            "Not specified",
-        }));
+            location:
+              job.location ||
+              job.city ||
+              "India",
+
+            type:
+              job.employment_type ||
+              "Job",
+
+            skills:
+              extractSkills(
+                [
+                  job.title,
+                  job.category,
+                  description,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              ),
+
+            description,
+
+            salary:
+              "Not disclosed",
+
+            posted:
+              formatPostedDate(
+                job.posted_at
+              ),
+
+            applyUrl:
+              job.apply_url ||
+              "",
+
+            remote:
+              job.remote ||
+              "Not specified",
+          };
+        });
 
       setJobs(formattedJobs);
-
-      /*
-       * ============================================================
-       * 2. LOAD PROFILE
-       * ============================================================
-       *
-       * Profile failure should NOT stop live jobs.
-       */
 
       try {
         const profileData =
@@ -160,14 +255,6 @@ export default function JobsPage() {
 
         setProfile(null);
       }
-
-      /*
-       * ============================================================
-       * 3. LOAD USER SKILLS
-       * ============================================================
-       *
-       * Skills failure should NOT stop live jobs.
-       */
 
       try {
         const skillsData =
@@ -200,33 +287,17 @@ export default function JobsPage() {
     }
   }
 
-  /*
-   * ================================================================
-   * USER SKILLS
-   * ================================================================
-   */
-
   const userSkillNames = useMemo(
     () =>
       skills
         .map((skill) =>
-          skill.skill_name
-            .trim()
-            .toLowerCase()
+          normalizeSkill(
+            skill.skill_name
+          )
         )
         .filter(Boolean),
     [skills]
   );
-
-  /*
-   * ================================================================
-   * SKILL MATCH
-   * ================================================================
-   *
-   * Current live jobs API may not return parsed skills yet.
-   * Therefore jobs without skills show "Market Match" as 0%.
-   * This will be replaced by dynamic skill extraction later.
-   */
 
   function calculateMatch(job: Job) {
     if (
@@ -236,13 +307,17 @@ export default function JobsPage() {
       return 0;
     }
 
+    if (
+      userSkillNames.length === 0
+    ) {
+      return 0;
+    }
+
     const matched =
       job.skills.filter(
         (skill) =>
           userSkillNames.includes(
-            skill
-              .toLowerCase()
-              .trim()
+            normalizeSkill(skill)
           )
       );
 
@@ -252,12 +327,6 @@ export default function JobsPage() {
         100
     );
   }
-
-  /*
-   * ================================================================
-   * DYNAMIC LOCATIONS
-   * ================================================================
-   */
 
   const locations = useMemo(() => {
     const values = jobs
@@ -272,12 +341,6 @@ export default function JobsPage() {
     ];
   }, [jobs]);
 
-  /*
-   * ================================================================
-   * DYNAMIC JOB TYPES
-   * ================================================================
-   */
-
   const jobTypes = useMemo(() => {
     const values = jobs
       .map((job) => job.type)
@@ -290,12 +353,6 @@ export default function JobsPage() {
       ),
     ];
   }, [jobs]);
-
-  /*
-   * ================================================================
-   * SEARCH + FILTER
-   * ================================================================
-   */
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
@@ -311,6 +368,7 @@ export default function JobsPage() {
         job.type,
         job.remote,
         job.description,
+        ...job.skills,
       ]
         .join(" ")
         .toLowerCase();
@@ -343,12 +401,6 @@ export default function JobsPage() {
     typeFilter,
   ]);
 
-  /*
-   * ================================================================
-   * RECOMMENDED JOBS
-   * ================================================================
-   */
-
   const recommendedJobs = useMemo(() => {
     return [...jobs]
       .sort(
@@ -361,12 +413,6 @@ export default function JobsPage() {
     jobs,
     userSkillNames,
   ]);
-
-  /*
-   * ================================================================
-   * APPLY
-   * ================================================================
-   */
 
   function applyToJob(job: Job) {
     if (!job.applyUrl) {
@@ -383,12 +429,6 @@ export default function JobsPage() {
       "noopener,noreferrer"
     );
   }
-
-  /*
-   * ================================================================
-   * LOADING SCREEN
-   * ================================================================
-   */
 
   if (loading) {
     return (
@@ -417,16 +457,8 @@ export default function JobsPage() {
     );
   }
 
-  /*
-   * ================================================================
-   * MAIN PAGE
-   * ================================================================
-   */
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#070b17] px-5 py-8 text-white lg:px-10">
-      {/* Background glow */}
-
       <div className="pointer-events-none absolute left-[-180px] top-[-180px] h-[450px] w-[450px] rounded-full bg-red-600/10 blur-[150px]" />
 
       <div className="pointer-events-none absolute right-[-180px] top-[15%] h-[450px] w-[450px] rounded-full bg-blue-600/10 blur-[150px]" />
@@ -434,11 +466,6 @@ export default function JobsPage() {
       <div className="pointer-events-none absolute bottom-[-200px] left-[35%] h-[500px] w-[500px] rounded-full bg-violet-600/10 blur-[160px]" />
 
       <div className="relative mx-auto max-w-7xl">
-
-        {/* =========================================================
-            HEADER
-        ========================================================= */}
-
         <header className="page-enter mb-8">
           <div className="mb-3 flex items-center gap-2">
             <span className="h-2 w-2 animate-pulse rounded-full bg-red-500 shadow-lg shadow-red-500/50" />
@@ -471,17 +498,12 @@ export default function JobsPage() {
                 </p>
 
                 <p className="mt-1 text-sm font-bold text-white">
-                  🎯{" "}
-                  {profile.target_career}
+                  🎯 {profile.target_career}
                 </p>
               </div>
             )}
           </div>
         </header>
-
-        {/* =========================================================
-            ERROR
-        ========================================================= */}
 
         {error && (
           <div className="mb-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-5 text-sm text-red-300">
@@ -489,15 +511,8 @@ export default function JobsPage() {
           </div>
         )}
 
-        {/* =========================================================
-            SEARCH + FILTER
-        ========================================================= */}
-
         <section className="mb-8 rounded-3xl border border-white/10 bg-white/[0.035] p-5 shadow-2xl shadow-black/20 backdrop-blur-xl md:p-6">
           <div className="grid gap-4 lg:grid-cols-[1fr_220px_220px]">
-
-            {/* Search */}
-
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600">
                 🔎
@@ -511,12 +526,10 @@ export default function JobsPage() {
                     event.target.value
                   )
                 }
-                placeholder="Search live jobs, companies or locations..."
+                placeholder="Search live jobs, companies, skills or locations..."
                 className="w-full rounded-xl border border-white/10 bg-[#0b1020] py-3.5 pl-11 pr-4 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-600 focus:border-red-500/50 focus:ring-2 focus:ring-red-500/10"
               />
             </div>
-
-            {/* Location */}
 
             <select
               value={locationFilter}
@@ -539,8 +552,6 @@ export default function JobsPage() {
               )}
             </select>
 
-            {/* Job type */}
-
             <select
               value={typeFilter}
               onChange={(event) =>
@@ -562,15 +573,10 @@ export default function JobsPage() {
           </div>
         </section>
 
-        {/* =========================================================
-            RECOMMENDED JOBS
-        ========================================================= */}
-
         {recommendedJobs.length > 0 && (
           <section className="mb-10">
             <div className="mb-5">
               <div className="flex items-center gap-3">
-
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-red-500/15 via-violet-500/15 to-blue-500/15">
                   ✨
                 </div>
@@ -585,7 +591,6 @@ export default function JobsPage() {
                     skills and live opportunities
                   </p>
                 </div>
-
               </div>
             </div>
 
@@ -608,13 +613,8 @@ export default function JobsPage() {
           </section>
         )}
 
-        {/* =========================================================
-            ALL LIVE JOBS
-        ========================================================= */}
-
         <section>
           <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
-
             <div>
               <h2 className="text-2xl font-black">
                 Live India Opportunities
@@ -631,7 +631,6 @@ export default function JobsPage() {
 
           {filteredJobs.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.025] p-12 text-center">
-
               <div className="mb-4 text-5xl">
                 🔎
               </div>
@@ -681,12 +680,6 @@ export default function JobsPage() {
   );
 }
 
-/*
- * ==================================================================
- * JOB CARD
- * ==================================================================
- */
-
 function JobCard({
   job,
   match,
@@ -711,25 +704,16 @@ function JobCard({
         animationDelay: `${index * 80}ms`,
       }}
     >
-
-      {/* Top gradient */}
-
       <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-red-500 via-violet-500 to-blue-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
       <div className="p-6">
-
-        {/* Job header */}
-
         <div className="flex items-start justify-between gap-4">
-
           <div className="flex min-w-0 items-center gap-4">
-
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500/15 via-violet-500/15 to-blue-500/15 text-xl transition-transform duration-300 group-hover:scale-110">
               💼
             </div>
 
             <div className="min-w-0">
-
               <h3 className="truncate text-base font-black text-white">
                 {job.title}
               </h3>
@@ -737,20 +721,15 @@ function JobCard({
               <p className="mt-1 text-xs font-medium text-slate-500">
                 {job.company}
               </p>
-
             </div>
           </div>
 
           <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-bold text-slate-500">
             {job.type}
           </span>
-
         </div>
 
-        {/* Meta */}
-
         <div className="mt-5 flex flex-wrap gap-2">
-
           <span className="rounded-lg border border-white/5 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-500">
             📍 {job.location}
           </span>
@@ -762,21 +741,29 @@ function JobCard({
           <span className="rounded-lg border border-white/5 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-500">
             🕒 {job.posted}
           </span>
-
         </div>
 
-        {/* Description */}
+        {job.skills.length > 0 && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            {job.skills.slice(0, 8).map(
+              (skill) => (
+                <span
+                  key={skill}
+                  className="rounded-lg border border-violet-500/10 bg-violet-500/5 px-2.5 py-1 text-[10px] font-semibold text-violet-300"
+                >
+                  {skill}
+                </span>
+              )
+            )}
+          </div>
+        )}
 
         <p className="mt-5 line-clamp-3 text-sm leading-6 text-slate-500">
           {job.description}
         </p>
 
-        {/* Skill match */}
-
         <div className="mt-6 rounded-2xl border border-white/5 bg-black/20 p-4">
-
           <div className="mb-2 flex items-center justify-between">
-
             <span className="text-xs font-semibold text-slate-500">
               Your Skill Match
             </span>
@@ -792,11 +779,9 @@ function JobCard({
             >
               {match}%
             </span>
-
           </div>
 
           <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
-
             <div
               className="h-full rounded-full bg-gradient-to-r from-red-500 via-violet-500 to-blue-500 transition-all duration-1000"
               style={{
@@ -806,12 +791,8 @@ function JobCard({
                 )}%`,
               }}
             />
-
           </div>
-
         </div>
-
-        {/* Apply */}
 
         <button
           type="button"
@@ -831,17 +812,68 @@ function JobCard({
           Opens the official employer
           application page
         </p>
-
       </div>
     </article>
   );
 }
 
-/*
- * ==================================================================
- * POSTED DATE FORMATTER
- * ==================================================================
- */
+function normalizeSkill(
+  skill: string
+) {
+  return skill
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function extractSkills(
+  text: string
+) {
+  const normalizedText =
+    text.toLowerCase();
+
+  const found: string[] = [];
+
+  for (const skill of MARKET_SKILLS) {
+    const normalizedSkill =
+      skill.toLowerCase();
+
+    if (
+      normalizedSkill === ".net"
+    ) {
+      if (
+        /(^|[^a-z0-9])\.net([^a-z0-9]|$)/i.test(
+          text
+        )
+      ) {
+        found.push(skill);
+      }
+
+      continue;
+    }
+
+    const escaped =
+      normalizedSkill.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+    const pattern = new RegExp(
+      `(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`,
+      "i"
+    );
+
+    if (
+      pattern.test(normalizedText)
+    ) {
+      found.push(skill);
+    }
+  }
+
+  return Array.from(
+    new Set(found)
+  );
+}
 
 function formatPostedDate(
   date?: string
