@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -44,6 +45,9 @@ type Job = {
   applyUrl: string;
   remote: string;
 };
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 const MARKET_SKILLS = [
   "Python",
@@ -163,7 +167,7 @@ export default function JobsPage() {
       setError("");
 
       const jobsResponse = await fetch(
-        "http://127.0.0.1:8000/api/market/jobs?country=IN&limit=20",
+        `${API_URL}/api/market/jobs?country=IN&limit=20`,
         {
           cache: "no-store",
         }
@@ -924,3 +928,4 @@ function formatPostedDate(
     days === 1 ? "" : "s"
   } ago`;
 }
+
